@@ -80,18 +80,67 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     return user
 
+# Define the batch file paths for each server
+SERVERS_START = {
+    "minecraft1": r"C:\path\to\minecraft1_start.bat",
+    "minecraft2": r"C:\path\to\minecraft2_start.bat",
+    "satisfactory": r"C:\path\to\satisfactory_start.bat",
+    "palworld": r"C:\path\to\palworld_start.bat",
+    "terraria": r"C:\path\to\terraria_start.bat",
+    "stardewvalley": r"C:\path\to\stardewvalley_start.bat",
+    # Add other servers as needed
+}
+
+SERVERS_STOP = {
+    "minecraft1": r"C:\path\to\minecraft1_stop.bat",
+    "minecraft2": r"C:\path\to\minecraft2_stop.bat",
+    "satisfactory": r"C:\path\to\satisfactory_stop.bat",
+    "palworld": r"C:\path\to\palworld_stop.bat",
+    "terraria": r"C:\path\to\terraria_stop.bat",
+    "stardewvalley": r"C:\path\to\stardewvalley_stop.bat",
+    # Add other servers as needed
+}
+
+SERVERS_RESTART = {
+    "minecraft1": r"C:\path\to\minecraft1_restart.bat",
+    "minecraft2": r"C:\path\to\minecraft2_restart.bat",
+    "satisfactory": r"C:\path\to\satisfactory_restart.bat",
+    "palworld": r"C:\path\to\palworld_restart.bat",
+    "terraria": r"C:\path\to\terraria_restart.bat",
+    "stardewvalley": r"C:\path\to\stardewvalley_restart.bat",
+    # Add other servers as needed
+}
+
+def run_batch_file(path: str):
+    try:
+        subprocess.Popen([path], shell=True)
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
 @app.post("/servers/{server_name}/start")
 async def start_server(server_name: str, user: User = Depends(get_current_user)):
-    try:
-        subprocess.Popen(["systemctl", "start", f"{server_name}.service"])
-        return {"message": f"Starting {server_name}"}
-    except Exception as e:
-        return {"error": str(e)}
+    if server_name not in SERVERS_START:
+        raise HTTPException(status_code=404, detail="Server not found")
+    success, error = run_batch_file(SERVERS_START[server_name])
+    if not success:
+        return {"error": error}
+    return {"message": f"Starting {server_name}"}
 
 @app.post("/servers/{server_name}/stop")
 async def stop_server(server_name: str, user: User = Depends(get_current_user)):
-    try:
-        subprocess.Popen(["systemctl", "stop", f"{server_name}.service"])
-        return {"message": f"Stopping {server_name}"}
-    except Exception as e:
-        return {"error": str(e)}
+    if server_name not in SERVERS_STOP:
+        raise HTTPException(status_code=404, detail="Server not found")
+    success, error = run_batch_file(SERVERS_STOP[server_name])
+    if not success:
+        return {"error": error}
+    return {"message": f"Stopping {server_name}"}
+
+@app.post("/servers/{server_name}/restart")
+async def restart_server(server_name: str, user: User = Depends(get_current_user)):
+    if server_name not in SERVERS_RESTART:
+        raise HTTPException(status_code=404, detail="Server not found")
+    success, error = run_batch_file(SERVERS_RESTART[server_name])
+    if not success:
+        return {"error": error}
+    return {"message": f"Restarting {server_name}"}

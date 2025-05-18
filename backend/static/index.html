@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Game Server Control Panel</title>
+</head>
+<body>
+  <h2>Login</h2>
+  <form id="loginForm">
+    <input type="text" id="username" placeholder="Username" required /><br>
+    <input type="password" id="password" placeholder="Password" required /><br>
+    <button type="submit">Login</button>
+  </form>
+
+  <hr>
+
+  <h2>Server Controls</h2>
+
+  <label for="serverSelect">Select Server:</label>
+  <select id="serverSelect">
+    <option value="minecraft1">Minecraft Server 1</option>
+    <option value="minecraft2">Minecraft Server 2</option>
+    <option value="satisfactory">Satisfactory</option>
+    <option value="palworld">Palworld</option>
+    <option value="terraria">Terraria</option>
+    <option value="stardew">Stardew Valley</option>
+  </select>
+  <br><br>
+
+  <button id="startBtn">Start Server</button>
+  <!-- Add stop and restart buttons if backend supports them -->
+  <!-- <button id="stopBtn">Stop Server</button> -->
+  <!-- <button id="restartBtn">Restart Server</button> -->
+
+  <p id="statusText"></p>
+
+  <script>
+    let token = null;
+    const statusText = document.getElementById('statusText');
+
+    document.getElementById('loginForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      const response = await fetch('/token', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        token = data.access_token;
+        statusText.textContent = "Login successful!";
+      } else {
+        statusText.textContent = "Login failed!";
+      }
+    };
+
+    async function callServerApi(action) {
+      if (!token) {
+        statusText.textContent = "Please login first.";
+        return;
+      }
+      const server = document.getElementById('serverSelect').value;
+      statusText.textContent = `Sending ${action} command to ${server}...`;
+
+      const response = await fetch(`/servers/${server}/${action}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        statusText.textContent = `${action.charAt(0).toUpperCase() + action.slice(1)} command sent to ${server}: ${JSON.stringify(data)}`;
+      } else {
+        const err = await response.json();
+        statusText.textContent = `Error: ${err.detail || err.error || 'Unknown error'}`;
+      }
+    }
+
+    document.getElementById('startBtn').onclick = () => callServerApi('start');
+    // document.getElementById('stopBtn').onclick = () => callServerApi('stop');
+    // document.getElementById('restartBtn').onclick = () => callServerApi('restart');
+
+  </script>
+</body>
+</html>
