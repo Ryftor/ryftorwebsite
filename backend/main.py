@@ -82,7 +82,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 # Define the batch file paths for each server
 SERVERS_START = {
-    "godpack": r"S:\Servers\Minecraft\God Pack\minecraft_start.bat",
+    "godpack": r"S:\Servers\Minecraft\God Pack\minecraft _start.bat",
     "mcally": r"S:\Servers\Minecraft\MCALLY\minecraft_start.bat",
     "cobblemon": r"S:\Servers\Minecraft\Cobblemon\minecraft_start.bat",
     "jujutsukraft": r"S:\Servers\Minecraft\Jujutsu Kraft\minecraft_start.bat",
