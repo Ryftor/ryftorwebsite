@@ -82,32 +82,47 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 # Define the batch file paths for each server
 SERVERS_START = {
-    "minecraft1": r"C:\path\to\minecraft1_start.bat",
-    "minecraft2": r"C:\path\to\minecraft2_start.bat",
-    "satisfactory": r"C:\path\to\satisfactory_start.bat",
-    "palworld": r"C:\path\to\palworld_start.bat",
-    "terraria": r"C:\path\to\terraria_start.bat",
-    "stardewvalley": r"C:\path\to\stardewvalley_start.bat",
+    "godpack": r"S:\Servers\Minecraft\God Pack\minecraft_start.bat",
+    "mcally": r"S:\Servers\Minecraft\MCALLY\minecraft_start.bat",
+    "cobblemon": r"S:\Servers\Minecraft\Cobblemon\minecraft_start.bat",
+    "jujutsukraft": r"S:\Servers\Minecraft\Jujutsu Kraft\minecraft_start.bat",
+    "mcsouls": r"S:\Servers\Minecraft\MC Souls\minecraft_start.bat",
+    "mcultra": r"S:\Servers\Minecraft\MC Ultra\minecraft_start.bat",
+    "mcnf": r"S:\Servers\Minecraft\MCNF\minecraft_start.bat",
+    "satisfactory": r"S:\Servers\Satisfactory\satisfactory_start.bat",
+    "palworld": r"S:\Servers\PalWorld\palworld_start.bat",
+    "terraria": r"S:\Servers\Terraria\terraria_start.bat",
+    "stardewvalley": r"S:\Servers\Stardew Valley\stardewvalley_start.bat",
     # Add other servers as needed
 }
 
 SERVERS_STOP = {
-    "minecraft1": r"C:\path\to\minecraft1_stop.bat",
-    "minecraft2": r"C:\path\to\minecraft2_stop.bat",
-    "satisfactory": r"C:\path\to\satisfactory_stop.bat",
-    "palworld": r"C:\path\to\palworld_stop.bat",
-    "terraria": r"C:\path\to\terraria_stop.bat",
-    "stardewvalley": r"C:\path\to\stardewvalley_stop.bat",
+    "godpack": r"S:\Servers\Minecraft\God Pack\minecraft_stop.bat",
+    "mcally": r"S:\Servers\Minecraft\MCALLY\minecraft_stop.bat",
+    "cobblemon": r"S:\Servers\Minecraft\Cobblemon\minecraft_stop.bat",
+    "jujutsukraft": r"S:\Servers\Minecraft\Jujutsu Kraft\minecraft_stop.bat",
+    "mcsouls": r"S:\Servers\Minecraft\MC Souls\minecraft_stop.bat",
+    "mcultra": r"S:\Servers\Minecraft\MC Ultra\minecraft_stop.bat",
+    "mcnf": r"S:\Servers\Minecraft\MCNF\minecraft_stop.bat",
+    "satisfactory": r"S:\Servers\Satisfactory\satisfactory_stop.bat",
+    "palworld": r"S:\Servers\PalWorld\palworld_stop.bat",
+    "terraria": r"S:\Servers\Terraria\terraria_stop.bat",
+    "stardewvalley": r"S:\Servers\Stardew Valley\stardewvalley_stop.bat",
     # Add other servers as needed
 }
 
 SERVERS_RESTART = {
-    "minecraft1": r"C:\path\to\minecraft1_restart.bat",
-    "minecraft2": r"C:\path\to\minecraft2_restart.bat",
-    "satisfactory": r"C:\path\to\satisfactory_restart.bat",
-    "palworld": r"C:\path\to\palworld_restart.bat",
-    "terraria": r"C:\path\to\terraria_restart.bat",
-    "stardewvalley": r"C:\path\to\stardewvalley_restart.bat",
+    "godpack": r"S:\Servers\Minecraft\God Pack\minecraft_restart.bat",
+    "mcally": r"S:\Servers\Minecraft\MCALLY\minecraft_restart.bat",
+    "cobblemon": r"S:\Servers\Minecraft\Cobblemon\minecraft_restart.bat",
+    "jujutsukraft": r"S:\Servers\Minecraft\Jujutsu Kraft\minecraft_restart.bat",
+    "mcsouls": r"S:\Servers\Minecraft\MC Souls\minecraft_restart.bat",
+    "mcultra": r"S:\Servers\Minecraft\MC Ultra\minecraft_restart.bat",
+    "mcnf": r"S:\Servers\Minecraft\MCNF\minecraft_restart.bat",
+    "satisfactory": r"S:\Servers\Satisfactory\satisfactory_restart.bat",
+    "palworld": r"S:\Servers\PalWorld\palworld_restart.bat",
+    "terraria": r"S:\Servers\Terraria\terraria_restart.bat",
+    "stardewvalley": r"S:\Servers\Stardew Valley\stardewvalley_restart.bat",
     # Add other servers as needed
 }
 
