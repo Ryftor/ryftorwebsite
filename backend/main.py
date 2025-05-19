@@ -1,27 +1,58 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from pydantic import BaseModel
-from typing import Optional
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
 import subprocess
+import os
 
-# Secret key for JWT
-SECRET_KEY = "your_super_secret_key"
+# --- Configuration ---
+SECRET_KEY = "your_super_secret_key"  # Change to a strong secret in production
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+DATABASE_URL = "sqlite:///./users.db"
+
+# --- Database Setup ---
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class UserDB(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+
+Base.metadata.create_all(bind=engine)
+
+# --- FastAPI App ---
 app = FastAPI()
 
+# --- CORS Middleware ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Change to your frontend URL(s) in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+async def root():
+    return FileResponse(os.path.join("static", "index.html"))
+
+# --- Security ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-fake_users_db = {
-    "friend1": {
-        "username": "friend1",
-        "hashed_password": pwd_context.hash("password123"),
-    }
-}
 
 class Token(BaseModel):
     access_token: str
@@ -30,18 +61,27 @@ class Token(BaseModel):
 class User(BaseModel):
     username: str
 
-class UserInDB(User):
-    hashed_password: str
+class UserCreate(User):
+    password: str
+
+# --- Utility Functions ---
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
+def get_password_hash(password):
+    return pwd_context.hash(password)
 
-def authenticate_user(db, username: str, password: str):
+def get_user(db: Session, username: str):
+    return db.query(UserDB).filter(UserDB.username == username).first()
+
+def authenticate_user(db: Session, username: str, password: str):
     user = get_user(db, username)
     if not user:
         return False
@@ -50,23 +90,34 @@ def authenticate_user(db, username: str, password: str):
     return user
 
 def create_access_token(data: dict):
-    to_encode = data.copy()
-    # Normally, add expiration, skipping for simplicity
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(data.copy(), SECRET_KEY, algorithm=ALGORITHM)
+
+# --- API Routes ---
+@app.post("/register", response_model=User)
+def register(user: UserCreate, db: Session = Depends(get_db)):
+    db_user = get_user(db, user.username)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    hashed_password = get_password_hash(user.password)
+    new_user = UserDB(username=user.username, hashed_password=hashed_password)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
 
 @app.post("/token", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
-    access_token = create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
+    token = create_access_token({"sub": user.username})
+    return {"access_token": token, "token_type": "bearer"}
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -75,12 +126,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = get_user(fake_users_db, username=username)
+    user = get_user(db, username=username)
     if user is None:
         raise credentials_exception
     return user
 
-# Define the batch file paths for each server
+# --- Server Management ---
 SERVERS_START = {
     "godpack": r"S:\Servers\Minecraft\God Pack\minecraft_start.bat",
     "mcally": r"S:\Servers\Minecraft\MCALLY\minecraft_start.bat",
@@ -93,7 +144,6 @@ SERVERS_START = {
     "palworld": r"S:\Servers\PalWorld\palworld_start.bat",
     "terraria": r"S:\Servers\Terraria\terraria_start.bat",
     "stardewvalley": r"S:\Servers\Stardew Valley\stardewvalley_start.bat",
-    # Add other servers as needed
 }
 
 SERVERS_STOP = {
@@ -108,7 +158,6 @@ SERVERS_STOP = {
     "palworld": r"S:\Servers\PalWorld\palworld_stop.bat",
     "terraria": r"S:\Servers\Terraria\terraria_stop.bat",
     "stardewvalley": r"S:\Servers\Stardew Valley\stardewvalley_stop.bat",
-    # Add other servers as needed
 }
 
 SERVERS_RESTART = {
@@ -123,39 +172,42 @@ SERVERS_RESTART = {
     "palworld": r"S:\Servers\PalWorld\palworld_restart.bat",
     "terraria": r"S:\Servers\Terraria\terraria_restart.bat",
     "stardewvalley": r"S:\Servers\Stardew Valley\stardewvalley_restart.bat",
-    # Add other servers as needed
 }
 
-def run_batch_file(path: str):
+def run_bat_file(path: str):
+    if not os.path.isfile(path):
+        return False, "Batch file not found"
     try:
         subprocess.Popen([path], shell=True)
-        return True, None
+        return True, "Command executed"
     except Exception as e:
         return False, str(e)
 
-@app.post("/servers/{server_name}/start")
-async def start_server(server_name: str, user: User = Depends(get_current_user)):
-    if server_name not in SERVERS_START:
-        raise HTTPException(status_code=404, detail="Server not found")
-    success, error = run_batch_file(SERVERS_START[server_name])
-    if not success:
-        return {"error": error}
-    return {"message": f"Starting {server_name}"}
+@app.post("/servers/{server_name}/{action}")
+async def server_action(
+    server_name: str,
+    action: str,
+    current_user: UserDB = Depends(get_current_user)
+):
+    server_name = server_name.lower()
+    action = action.lower()
 
-@app.post("/servers/{server_name}/stop")
-async def stop_server(server_name: str, user: User = Depends(get_current_user)):
-    if server_name not in SERVERS_STOP:
-        raise HTTPException(status_code=404, detail="Server not found")
-    success, error = run_batch_file(SERVERS_STOP[server_name])
-    if not success:
-        return {"error": error}
-    return {"message": f"Stopping {server_name}"}
+    if action not in ("start", "stop", "restart"):
+        raise HTTPException(status_code=400, detail="Invalid action")
 
-@app.post("/servers/{server_name}/restart")
-async def restart_server(server_name: str, user: User = Depends(get_current_user)):
-    if server_name not in SERVERS_RESTART:
+    server_map = {
+        "start": SERVERS_START,
+        "stop": SERVERS_STOP,
+        "restart": SERVERS_RESTART
+    }
+
+    if server_name not in server_map[action]:
         raise HTTPException(status_code=404, detail="Server not found")
-    success, error = run_batch_file(SERVERS_RESTART[server_name])
+
+    bat_path = server_map[action][server_name]
+
+    success, message = run_bat_file(bat_path)
     if not success:
-        return {"error": error}
-    return {"message": f"Restarting {server_name}"}
+        raise HTTPException(status_code=500, detail=message)
+
+    return {"message": message}
