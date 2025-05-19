@@ -260,8 +260,20 @@
   <p id="statusText"></p>
 
   <script>
-    // Replace with your backend's full base URL (no trailing slash)
-    const backendBaseUrl = 'http://localhost:8000';
+    // Local network IP (for use inside your home network)
+    const localBackendUrl = 'http://192.168.1.96:8000';
+
+    // Public IP (for use outside your home network)
+    const publicBackendUrl = 'http://104.136.211.165:8000';
+
+    // Detect if running inside LAN or from outside (simple heuristic)
+    function isLocalNetwork() {
+      const hostname = window.location.hostname;
+      return hostname === 'localhost' || hostname.startsWith('192.168.');
+    }
+
+    // Use appropriate backend URL based on environment
+    const backendBaseUrl = isLocalNetwork() ? localBackendUrl : publicBackendUrl;
 
     const statusText = document.getElementById('statusText');
     const controlsDiv = document.getElementById('controls');
@@ -332,7 +344,7 @@
       }
     };
 
-    // Login handler
+    // Login handler (fixed to match FastAPI OAuth2 /token endpoint)
     loginForm.onsubmit = async (e) => {
       e.preventDefault();
       const username = document.getElementById('username').value.trim();
@@ -344,70 +356,80 @@
       }
 
       try {
+        const formData = new URLSearchParams();
+        formData.append('username', username);
+        formData.append('password', password);
+
         const response = await fetch(`${backendBaseUrl}/token`, {
           method: 'POST',
           headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+          body: formData.toString()
         });
 
         if (response.ok) {
           const data = await response.json();
           token = data.access_token;
           localStorage.setItem('token', token);
+          statusText.textContent = "Login successful!";
           controlsDiv.style.display = 'block';
           toggleAuthForms(false);
-          statusText.textContent = "Login successful!";
           loginForm.reset();
         } else {
-          statusText.textContent = "Login failed! Check your username and password.";
+          const err = await response.json();
+          statusText.textContent = `Login failed: ${err.detail || err.error || 'Unknown error'}`;
         }
       } catch (error) {
         statusText.textContent = `Login error: ${error.message}`;
       }
     };
 
-    // Logout handler
+    // Logout button
     document.getElementById('logoutBtn').onclick = () => {
-      token = null;
       localStorage.removeItem('token');
+      token = null;
       controlsDiv.style.display = 'none';
       toggleAuthForms(true);
-      statusText.textContent = "Logged out successfully.";
+      statusText.textContent = "Logged out.";
     };
 
-    // Server control handler
-    async function callServerApi(action) {
+    // Server control buttons
+    const serverSelect = document.getElementById('serverSelect');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const restartBtn = document.getElementById('restartBtn');
+
+    async function sendServerCommand(action) {
       if (!token) {
-        statusText.textContent = "Please login first.";
+        statusText.textContent = "You must be logged in to perform this action.";
         return;
       }
-
-      const server = document.getElementById('serverSelect').value;
-      statusText.textContent = `Sending ${action} command to ${server}...`;
+      const server = serverSelect.value;
 
       try {
+        statusText.textContent = `${action.charAt(0).toUpperCase() + action.slice(1)}ing server...`;
         const response = await fetch(`${backendBaseUrl}/servers/${server}/${action}`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
-
         if (response.ok) {
-          const data = await response.json();
-          statusText.textContent = `${action.charAt(0).toUpperCase() + action.slice(1)} command sent to ${server}: ${data.message}`;
+          const result = await response.json();
+          statusText.textContent = `${action.charAt(0).toUpperCase() + action.slice(1)} successful: ${result.message || 'Done.'}`;
         } else {
           const err = await response.json();
-          statusText.textContent = `Error: ${err.detail || err.error || 'Unknown error'}`;
+          statusText.textContent = `${action.charAt(0).toUpperCase() + action.slice(1)} failed: ${err.detail || err.error || 'Unknown error'}`;
         }
       } catch (error) {
-        statusText.textContent = `Network error: ${error.message}`;
+        statusText.textContent = `${action.charAt(0).toUpperCase() + action.slice(1)} error: ${error.message}`;
       }
     }
 
-    document.getElementById('startBtn').onclick = () => callServerApi('start');
-    document.getElementById('stopBtn').onclick = () => callServerApi('stop');
-    document.getElementById('restartBtn').onclick = () => callServerApi('restart');
+    startBtn.onclick = () => sendServerCommand('start');
+    stopBtn.onclick = () => sendServerCommand('stop');
+    restartBtn.onclick = () => sendServerCommand('restart');
+
   </script>
 </body>
 </html>

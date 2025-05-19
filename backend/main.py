@@ -2,7 +2,6 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from pydantic import BaseModel
@@ -13,7 +12,7 @@ import subprocess
 import os
 
 # --- Configuration ---
-SECRET_KEY = "your_super_secret_key"  # Change to a strong secret in production
+SECRET_KEY = "your_super_secret_key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -35,15 +34,7 @@ Base.metadata.create_all(bind=engine)
 # --- FastAPI App ---
 app = FastAPI()
 
-# --- CORS Middleware ---
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Change to your frontend URL(s) in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+# --- Static Files ---
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
@@ -83,20 +74,30 @@ def get_user(db: Session, username: str):
 
 def authenticate_user(db: Session, username: str, password: str):
     user = get_user(db, username)
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
+    if not user or not verify_password(password, user.hashed_password):
         return False
     return user
 
 def create_access_token(data: dict):
     return jwt.encode(data.copy(), SECRET_KEY, algorithm=ALGORITHM)
 
+# --- Create Test User ---
+def create_test_user():
+    db = SessionLocal()
+    if not get_user(db, "admin"):
+        hashed = get_password_hash("adminpass")
+        user = UserDB(username="admin", hashed_password=hashed)
+        db.add(user)
+        db.commit()
+        print("✅ Created test user: admin / adminpass")
+    db.close()
+
+create_test_user()
+
 # --- API Routes ---
 @app.post("/register", response_model=User)
 def register(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = get_user(db, user.username)
-    if db_user:
+    if get_user(db, user.username):
         raise HTTPException(status_code=400, detail="Username already registered")
     hashed_password = get_password_hash(user.password)
     new_user = UserDB(username=user.username, hashed_password=hashed_password)
